@@ -35,7 +35,7 @@ def _instantiate_dir(prefix='wikipedia-movies-'):
 
     Parameters
     ----------
-    prefix : string, optional
+    prefix : string, optional (default='wikipedia-movies-')
         The the portion of the folder name before the auto-generated
         date suffix.
 
@@ -54,16 +54,37 @@ def _instantiate_dir(prefix='wikipedia-movies-'):
         data_dir.mkdir()
     except FileExistsError as e:
         print(
-            f"Directory `{data_dir}` already exists. Any files already present "
-            "will be skipped."
+            f"Directory `{data_dir}` already exists. Any files already " 
+            "present will be skipped."
         )
     
     return data_dir
 
 
-def _parse_header_row(row):
-    """If a row is a header, run this."""
+def _parse_header_row(row, **options):
+    """Parse the header row of a table.
+
+    If a column spans multiple cells, then duplicate values are returned
+    for each. Duplicated columns are appended with ``suffix`` and index
+    for each repeat.
     
+    Parameters
+    ----------
+    row : BeautifulSoup Tag object
+        A <tr> tag from the html, all of whose cells are <th> tags
+
+    suffix : string, optional (default='__')
+        The seperator between column name and index for multi-cols.
+
+    Returns
+    -------
+    columns : list
+        The headers as a list.
+
+    """ 
+
+    suffix = options.pop('suffix', '__')
+
     # If exists <td> tags then not a header row
     if row.find_all('td'):
         raise ValueError("`row` is not a table header.")
@@ -72,14 +93,42 @@ def _parse_header_row(row):
     for x in row.find_all('th'):
         colspan = int(x.attrs.pop('colspan', 1))
         if colspan > 1:
-            columns += [f'{x.text.strip()}__{i}' for i in range(colspan)]
+            columns += \
+                [x.text.strip() + suffix + str(i) for i in range(colspan)]
         else:
             columns += [x.text.strip()]
+
     return columns
             
 
-def _parse_data_row(row, columns, counters):
-    """If a row is not a header, run this."""
+def _parse_data_row(row, columns, counters, **options):
+    """Parse table data row.
+    
+    If a cell has multiple tags within it then each will be seperated
+    by `sep` character.
+
+    Parameters
+    ----------
+    row : BeautifulSoup Tag object
+        A <tr> tag from the html, with data in at least one cell.
+
+    columns : list
+        The list of column headers for the table.
+
+    counters : dict
+        Counters used for propogating multirow data.
+
+    sep : string, optional (default='')
+        Seperator between multiple tags in a cell.
+
+    Returns
+    -------
+    row_processed : list
+        The processed row.
+
+    """
+    sep = options.pop('sep', '')
+
     cells = row.find_all(['th', 'td'])
     cell_cursor = 0
     row_processed = []
@@ -90,39 +139,56 @@ def _parse_data_row(row, columns, counters):
             cell_value = counters[col][1]
             counters[col][0] -= 1   
         # If not propagate, get from cell    
-        else:
+        elif cell_cursor < len(cells):
             cell = cells[cell_cursor]
             rowspan = int(cell.attrs.pop('rowspan', 1))
-            cell_value = cell.text.strip()
+            cell_value = sep.join(cell.stripped_strings)
 
             if rowspan > 1:
                 counters[col] = [rowspan - 1, cell_value]
                 
             cell_cursor += 1
+        # If cursor out of index range, assume cells missing from
+        else:
+            cell_value = None
 
         row_processed.append(cell_value)     
         
     return row_processed
 
 
-def parse_table(table):
-    """Parse rows of table."""
+def parse_table(table, **options):
+    """Parse table from html.
+    
+    Parameters
+    table : BeautifulSoup Tag object
+        The html <table> to parse.
+    
+    Returns
+    -------
+    table_parsed : list of lists
+        An array of the table data.
+
+    columns : list
+        The column headers for the table.
+    
+    """
     rows = table.find_all('tr')
 
     header_row = rows.pop(0)
-    columns = _parse_header_row(header_row) 
+    columns = _parse_header_row(header_row, **options) 
     # For entries with rowspan, save value and amount left to fill        
     counters = dict((key, [0, None]) for key in columns)
     
     table_parsed = []
     for row in rows:
-        row_parsed = _parse_data_row(row, columns, counters)
+        row_parsed = _parse_data_row(row, columns, counters, **options)
         table_parsed.append(row_parsed)
     
     return table_parsed, columns
 
 
-def fetch_movie_data(year, first_as_master=True):
+def fetch_movie_data(year, **options):
     """Get all movie data for specified year.
 
     Crawls wikipedia pages for `List_of_American_films_of_year_YYYY` to
@@ -138,7 +204,7 @@ def fetch_movie_data(year, first_as_master=True):
         The year for which to pull data. The Wikipedia pages are 
         moderately consistent in layout starting in 1900.
 
-    first_as_master : bool, optional
+    first_as_master : bool, optional (default=True)
         If True, forces all tables collected to have the same columns
         and layout as the first table on the page.
     
@@ -148,6 +214,9 @@ def fetch_movie_data(year, first_as_master=True):
         The raw data in a pandas data frame.
 
     """
+
+    first_as_master = options.pop('first_as_master', True)
+
     url = f'https://en.wikipedia.org/wiki/List_of_American_films_of_{year}'
     
     response = requests.get(url)  
@@ -173,8 +242,9 @@ def fetch_movie_data(year, first_as_master=True):
     tables = soup.find_all('table', {'class': 'wikitable'})
 
     first_table = tables.pop(0)
-    data, master_columns = parse_table(first_table)
+    data, master_columns = parse_table(first_table, **options)
     fetched = pd.DataFrame(data, columns=master_columns)
+
     for table in tables:
         data, columns = parse_table(table)
         if first_as_master:
@@ -183,7 +253,7 @@ def fetch_movie_data(year, first_as_master=True):
         if data and columns:
             try:
                 df = pd.DataFrame(data, columns=columns)
-                fetched.append(df)
+                fetched = fetched.append(df)
             # If for whatever reason there is an error, don't include
             except Exception as e:
                 print(e)
@@ -192,18 +262,21 @@ def fetch_movie_data(year, first_as_master=True):
     return fetched
 
 
-def fetch_all(start_year=1900, verbose=True):
+def fetch_all(start_year=1900, **options):
     """Fetch data from `start_year` until no results.
 
     Parameters
     ----------
-    start_year : int, optional
+    start_year : int, optional (default=1900)
         The year to start the crawl from.
 
-    verbose : boolean, optional
+    verbose : boolean, optional (default=True)
         Whether or not to print runtime information.
 
     """
+
+    verbose = options.pop('verbose', True)
+
     data_dir = _instantiate_dir()
 
     if verbose:
@@ -219,8 +292,9 @@ def fetch_all(start_year=1900, verbose=True):
         if output_path.exists():
             print(f'Already have data for {year}.')
         else:
-            df = fetch_movie_data(year)
-            df.to_csv(output_path, index=False)
+            df = fetch_movie_data(year, **options)
+            if df is not None:
+                df.to_csv(output_path, index=False)
             # Sleep for 2 seconds to not overwhelm Wikipedia
             time.sleep(SLEEPTIME)
         year += 1
@@ -230,4 +304,5 @@ def fetch_all(start_year=1900, verbose=True):
 
 
 if __name__ == '__main__':
-    fetch_all()
+    fetch_all(sep='|')
+    
