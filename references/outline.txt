@@ -1,0 +1,14 @@
+Components
+1. Requesting API
+    URL GET POST etc
+2. Crawl Wikipedia for data
+    HTML tags
+3. Hosting/warehousing data
+    SQL
+4. Training ML model
+    Feature Engineering (BOW, TfIdf, WordVect)
+    Models (TensorFlow, Keras, Scikit-Learn)
+5. Web application
+    Flask, Jinja (Django?)
+6. Hosting
+
