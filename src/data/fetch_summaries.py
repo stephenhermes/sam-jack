@@ -3,6 +3,7 @@
 import datetime
 import glob
 import os
+import re
 import json
 import pathlib
 
@@ -120,16 +121,24 @@ if __name__ == '__main__':
             'Plot': [],
             'Response': []
         }
+
+        # Regex for processing titles
+        pattern = re.compile(r'[^a-zA-Z0-9 ]+')
+
         for t in titles:
             # For some reason, 2014 has a float title?
-            response = get_movie_data(str(t), year=year, full_plot=True)
+            t = str(t)
+            response = get_movie_data(t, year=year, full_plot=True)
             # If can't get for year, search without year
             if response['Response'] == 'False':
                 response = get_movie_data(t, full_plot=True)
-
-            # If still no data, record name and flag
-            if response['Response'] == 'False':
-                response['Title'] = t
+                # If still no, process name then search
+                if response['Response'] == 'False':
+                    t = pattern.sub('', t)
+                    response = get_movie_data(t, full_plot=True)
+                    # If still no data, record name and flag
+                    if response['Response'] == 'False':
+                        response['Title'] = t
 
             for key in raw_data.keys():
                 val = response.pop(key, None)
