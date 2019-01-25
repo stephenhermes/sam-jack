@@ -1,7 +1,15 @@
 sam-jack
 ==============================
 
-Just some Sam Jack data science
+This is a sample data science project done from start to (some degree of) finish, using the `cookiecutter` project structure. The goal is to perform <a target="_blank" href="https://en.wikipedia.org/wiki/Literate_programming">literate</a>, <a target="_blank" href="http://ropensci.github.io/reproducibility-guide/sections/introduction/">reproducible work.
+
+**The Project.** Here we use natural language processing to predict a film's genre based off of a plain text plot summary. Included are notebooks and scripts illustrating different techniques of data science, including:
+- web scraping to get film plots and genre data,
+- data visualization to explore the data,
+- natural language processing to engineer features from plain text, and
+- machine learning training, tuning and evaluation.
+
+**Why Sam Jack?** This project started off with a different goal involving Samuel L. Jackson.
 
 Project Organization
 ------------
