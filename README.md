@@ -9,7 +9,16 @@ This is a sample data science project done from start to (some degree of) finish
 - natural language processing to engineer features from plain text, and
 - machine learning training, tuning and evaluation.
 
-**Why Sam Jack?** This project started off with a different goal involving Samuel L. Jackson.
+<!-- **Why Sam Jack?** This project started off with a different goal involving Samuel L. Jackson. -->
+
+**Highlights.** Some specific highlights of the project are:
+- *src/* - Constains scripts used.
+    - *data/fetch_summaries.py* - A script to fetch film data from the OMDb web api.
+    - *data/wikipedia_movies.py* - A webscraper to crawl Wikipedia for titles of films. The data pulled by this script is used as input to *fetch_summaries.py*.
+    - *models/train.py* - Trains a multi-label random forest classifier using word embeddings to predict the genre of a film, based on it's raw test plot summary.
+- *notebooks/* - Contains Jupyter notebooks for data analysis, exploration, model evaluation and prototyping.
+    - *5.0-sh-genre-modeling* - The construction, development, and analysis of the machine learning model used.
+    - *4.1-sh-raw-data-eda* - Exploratory data analysis of the film data pulled. 
 
 Project Organization
 ------------
