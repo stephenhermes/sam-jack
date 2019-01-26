@@ -237,6 +237,6 @@ if __name__ == '__main__':
     # Fit on full data and serialize
     estimator = classifier.best_estimator_
     estimator.fit(plots, labels)
-    coda = datetime.datetime().now().strftime('%Y%m%d_%h%m%s')
+    coda = datetime.datetime().now().strftime('%Y%m%d_%H%M%S')
     with open(project_path / 'models' / f'word2vect_{coda}.pkl', 'wb') as f:
         pickle.dump(estimator, f)
